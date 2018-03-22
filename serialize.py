@@ -7,32 +7,26 @@ import game
 import random_play
 
 
-def record_play(g, tree=None, debug=False):
-    if not tree:
-        tree = {}
+def record_play(g, debug=False):
     moves = {p: [] for p in g.players}
     for player in g.play():
         state = g.compact_state()
         moves[player].append(state)
-        if state not in tree:
-            tree[state] = {"tries": 1, "wins": 0}
+        if state not in g.tree:
+            g.tree[state] = {"tries": 1, "wins": 0}
         else:
-            tree[state]["tries"] += 1
+            g.tree[state]["tries"] += 1
         if debug:
             g.print_state()
     winner = g.winner()
     for move in moves[winner]:
-        tree[move]["wins"] += 1
-    return tree
+        g.tree[move]["wins"] += 1
 
 
-def repeat_plays(g, n=10, tree=None):
-    if not tree:
-        tree = {}
+def repeat_plays(g, n=10):
     for play in range(n):
-        new_game = copy.deepcopy(g)
-        tree = record_play(new_game, tree)
-    return tree
+        g.reset()
+        record_play(g)
 
 
 def read_tree(infile):

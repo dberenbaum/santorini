@@ -1,4 +1,5 @@
 import collections
+import itertools
 
 
 class Space(object):
@@ -11,7 +12,7 @@ class Space(object):
         self.player = None
 
     def __str__(self):
-        return "{:d}, {:d}".format(self.x, self.y)
+        return "{:s}{:d}".format(chr(self.x+65), self.y)
 
     def is_adjacent(self, space):
         if self == space:
@@ -25,13 +26,20 @@ class Space(object):
 
 class Game(object):
 
-    def __init__(self, players, size=5):
+    def __init__(self, players, size=5, tree=None):
         self.size = size
+        self.board = [Space(x, y) for y in range(self.size) for x in range(self.size)]
         self.players = list(players)
+        if tree:
+            self.tree = tree
+        else:
+            self.tree = {}
         self.reset()
 
     def reset(self):
-        self.board = [Space(x, y) for y in range(self.size) for x in range(self.size)]
+        for space in self.board:
+            space.level = 0
+            space.player = None
         self.turns = collections.deque(self.players)
         for player in self.players:
             player.reset()
@@ -92,12 +100,15 @@ class Game(object):
         playernums = state[self.size**2:]
         for space, level, playernum in zip(self.board, levels, playernums):
             space.level = int(level)
+            playernum = int(playernum)
             if playernum:
-                space.player = self.turns[int(playernum) - 1]
-                for pawn in space.player:
+                space.player = self.turns[playernum - 1]
+                for pawn in space.player.pawns:
                     if not pawn.space:
                         pawn.space = space
                         break
+            else:
+                space.player = None
 
 
 class Player(object):
@@ -136,12 +147,28 @@ class Player(object):
             raise InvalidPlayError
         space.level += 1
 
+    def setup_options(self, game):
+        pawn_options = [p.placement_options(game) for p in self.pawns]
+        setup_options = []
+        for setup_option in itertools.product(*pawn_options):
+            if len(setup_option) == len(set(setup_option)):
+                setup_options.append(setup_option)
+        return setup_options
+
     def turn_options(self, game):
         options = []
+        orig_pawn = self.active_pawn
         for pawn in self.pawns:
+            self.active_pawn = pawn
+            orig_space = pawn.space
             for move_space in pawn.move_options(game):
-                for build_space in pawn.build_options(game, move_space):
+                self.move(move_space)
+                for build_space in pawn.build_options(game):
                     options.append((pawn, move_space, build_space))
+                move_space.player = None
+                pawn.space = orig_space
+                orig_space.player = self
+        self.active_pawn = orig_pawn
         return options
 
     def setup(self, game):
@@ -192,8 +219,8 @@ class Pawn(object):
     def move_options(self, game):
         return [space for space in game.board if self.valid_move(space)]
 
-    def build_options(self, game, start=None):
-        return [space for space in game.board if self.valid_build(space, start)]
+    def build_options(self, game):
+        return [space for space in game.board if self.valid_build(space)]
 
 
 class InvalidPlayError(Exception):
