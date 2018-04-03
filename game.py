@@ -12,7 +12,7 @@ class Space(object):
         self.player = None
 
     def __str__(self):
-        return "{:s}{:d}".format(chr(self.x+65), self.y)
+        return "{:s}{:d}".format(chr(self.x+65), self.y+1)
 
     def is_adjacent(self, space):
         if self == space:
@@ -47,10 +47,12 @@ class Game(object):
     def play(self):
         for player in self.players:
             player.setup(self)
-            yield self.next_player()
+            yield self.active_player()
+            self.next_player()
         while not self.winner():
             self.active_player().turn(self)
-            yield self.next_player()
+            yield self.active_player()
+            self.next_player()
 
     def active_player(self):
         return self.turns[0]
@@ -163,8 +165,12 @@ class Player(object):
             orig_space = pawn.space
             for move_space in pawn.move_options(game):
                 self.move(move_space)
-                for build_space in pawn.build_options(game):
-                    options.append((pawn, move_space, build_space))
+                if self.winner:
+                    options.append((pawn, move_space, None))
+                    self.winner = False
+                else:
+                    for build_space in pawn.build_options(game):
+                        options.append((pawn, move_space, build_space))
                 move_space.player = None
                 pawn.space = orig_space
                 orig_space.player = self

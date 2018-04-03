@@ -15,14 +15,14 @@ def choose_uct(options, tree, c=C):
             n = tree[state]["tries"]
             w = tree[state]["wins"]
             tree_nodes.append((state, n, w))
-            total += w
+            total += n
         except KeyError:
             return state
     selection = None
     max_uct = 0
     for state, n, w in tree_nodes:
         uct = w/n+math.pow(1.0*math.log(total)/n, 1/c)
-        if uct > max_uct:
+        if uct >= max_uct:
             selection = state
             max_uct = uct
     return selection
@@ -50,19 +50,23 @@ class MonteCarloPlayer(Player):
     def turn(self, game):
         options = []
         orig_state = game.compact_state()
-        for option in self.turn_options(game):
+        for pawn, move_space, build_space in self.turn_options(game):
             # Simulate each placement.
-            self.move_and_build(*option)
-            state = game.compact_state()
-            options.append(state)
-            game.set_state(orig_state)
-        selection = choose_uct(options, game.tree)
-        if selection:
+            self.active_pawn = pawn
+            self.move(move_space)
+            if build_space:
+                self.build(build_space)
+                state = game.compact_state()
+                options.append(state)
+                game.set_state(orig_state)
+            else:
+                # Move without build means winning move.
+                state = game.compact_state()
+                options = [state]
+                game.set_state(orig_state)
+                break
+        if options:
+            selection = choose_uct(options, game.tree)
             game.set_state(selection)
         else:
             game.turns.remove(self)
-
-    def move_and_build(self, pawn, move_space, build_space):
-        self.active_pawn = pawn
-        self.move(move_space)
-        self.build(build_space)

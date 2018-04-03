@@ -18,6 +18,7 @@ class RandomPlayer(Player):
             pawn, move_space, build_space = random.choice(options)
             self.active_pawn = pawn
             self.move(move_space)
-            self.build(build_space)
+            if build_space:
+                self.build(build_space)
         except IndexError:
             game.turns.remove(self)
