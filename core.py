@@ -1,6 +1,13 @@
 import collections
 import itertools
 
+import serialize
+
+
+def xchar(x):
+    """Convert x coordinate to character representation."""
+    return chr(x+65)
+
 
 class Space(object):
     """Board space."""
@@ -12,7 +19,7 @@ class Space(object):
         self.player = None
 
     def __str__(self):
-        return "{:s}{:d}".format(chr(self.x+65), self.y+1)
+        return "{:s}{:d}".format(xchar(self.x), self.y+1)
 
     def is_adjacent(self, space):
         if self == space:
@@ -26,14 +33,10 @@ class Space(object):
 
 class Game(object):
 
-    def __init__(self, players, size=5, tree=None):
+    def __init__(self, players, size=5):
         self.size = size
         self.board = [Space(x, y) for y in range(self.size) for x in range(self.size)]
         self.players = list(players)
-        if tree:
-            self.tree = tree
-        else:
-            self.tree = {}
         self.reset()
 
     def reset(self):
@@ -74,9 +77,10 @@ class Game(object):
         return None
 
     def print_state(self):
+        print("  " + "   ".join([xchar(i) for i in range(self.size)]), end="")
         for space in self.board:
             if not space.x:
-                print("\n|", end="")
+                print("\n{:d}|".format(space.y+1), end="")
             player = space.player or ""
             print("{:d} {:1.1s}|".format(space.level, str(player)), end="")
         print("\n")

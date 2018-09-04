@@ -1,3 +1,5 @@
+# TODO: Reorganize files into scripts/bin/etc.
+
 # Santorini board game
 
 To simulate a random game:
