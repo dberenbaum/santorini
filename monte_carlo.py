@@ -1,10 +1,10 @@
 import math
 import random
 
-from game import Player
+from core import Player
 
 
-C = math.sqrt(2) # Exploration parameter.
+C = math.sqrt(2)  # Exploration parameter.
 
 
 def choose_uct(options, tree, c=C):
@@ -30,6 +30,10 @@ def choose_uct(options, tree, c=C):
 
 class MonteCarloPlayer(Player):
 
+    def __init__(self, name, pawns, tree):
+        super().__init__(name=name, pawns=pawns)
+        self.tree = tree
+
     def setup(self, game):
         options = []
         orig_state = game.compact_state()
@@ -39,7 +43,7 @@ class MonteCarloPlayer(Player):
             state = game.compact_state()
             options.append(state)
             game.set_state(orig_state)
-        selection = choose_uct(options, game.tree)
+        selection = choose_uct(options, self.tree)
         game.set_state(selection)
 
     def place_pawns(self, spaces):
@@ -66,7 +70,7 @@ class MonteCarloPlayer(Player):
                 game.set_state(orig_state)
                 break
         if options:
-            selection = choose_uct(options, game.tree)
+            selection = choose_uct(options, self.tree)
             game.set_state(selection)
         else:
             game.turns.remove(self)

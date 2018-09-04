@@ -1,3 +1,5 @@
+# TODO: Add docstrings; Reorganize and package code; tests.
+
 # Santorini board game
 
 To simulate a random game:
