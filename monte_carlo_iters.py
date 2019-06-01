@@ -13,6 +13,7 @@ CONN_STR = "mongodb://localhost:27017/"
 
 @click.command()
 @click.argument("n", type=int)
+@click.option("-c", "conn_str", default=CONN_STR)
 def play(n, conn_str=CONN_STR):
     with mongo_serialize.MongoTree(conn_str) as tree:
         x = monte_carlo.MonteCarloPlayer("x", (core.Pawn(), core.Pawn()), tree)
