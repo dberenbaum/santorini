@@ -13,11 +13,14 @@ CONN_STR = "mongodb://localhost:27017/"
 
 @click.command()
 @click.argument("n", type=int)
-@click.option("-c", "conn_str", default=CONN_STR)
-def play(n, conn_str=CONN_STR):
+@click.option("--conn", "conn_str", default=CONN_STR)
+@click.option("--explore", "explore_param", default=monte_carlo.C)
+def play(n, conn_str, explore_param):
     with mongo_serialize.MongoTree(conn_str) as tree:
-        x = monte_carlo.MonteCarloPlayer("x", (core.Pawn(), core.Pawn()), tree)
-        o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree)
+        x = monte_carlo.MonteCarloPlayer("x", (core.Pawn(), core.Pawn()), tree,
+                c=explore_param)
+        o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree,
+                c=explore_param)
         players = [x, o]
         random.shuffle(players)
         game = core.Game(players)

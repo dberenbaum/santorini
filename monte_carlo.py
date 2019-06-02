@@ -30,9 +30,10 @@ def choose_uct(options, tree, c=C):
 
 class MonteCarloPlayer(Player):
 
-    def __init__(self, name, pawns, tree):
+    def __init__(self, name, pawns, tree, c=C):
         super().__init__(name=name, pawns=pawns)
         self.tree = tree
+        self.c = c
 
     def setup(self, game):
         options = []
@@ -43,7 +44,7 @@ class MonteCarloPlayer(Player):
             state = game.compact_state()
             options.append(state)
             game.set_state(orig_state)
-        selection = choose_uct(options, self.tree)
+        selection = choose_uct(options, self.tree, c=self.c)
         game.set_state(selection)
 
     def place_pawns(self, spaces):
@@ -70,7 +71,7 @@ class MonteCarloPlayer(Player):
                 game.set_state(orig_state)
                 break
         if options:
-            selection = choose_uct(options, self.tree)
+            selection = choose_uct(options, self.tree, c=self.c)
             game.set_state(selection)
         else:
             game.turns.remove(self)
