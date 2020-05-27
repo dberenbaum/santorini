@@ -5,15 +5,13 @@ import click
 import core
 import human_play
 import monte_carlo
-import mongo_serialize
+from serialize_factory import serializer_factory
 
-
-CONN_STR = "mongodb://localhost:27017/"
 
 @click.command()
-@click.option("-c", "conn_str", default=CONN_STR)
-def play(conn_str=CONN_STR):
-    with mongo_serialize.MongoTree(conn_str) as tree:
+@click.option("-f", "format")
+def play(format):
+    with serializer_factory.get_serializer(format) as tree:
         x = human_play.HumanPlayer("x", (core.Pawn(), core.Pawn()))
         o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree)
         print("You are player x.")

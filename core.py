@@ -1,8 +1,6 @@
 import collections
 import itertools
 
-import serialize
-
 
 def xchar(x):
     """Convert x coordinate to character representation."""

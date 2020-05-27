@@ -1,4 +1,4 @@
-import sys
+import multiprocessing
 
 import click
 
@@ -6,17 +6,12 @@ import core
 import monte_carlo
 import random
 import serialize
-import mongo_serialize
+from serialize_factory import serializer_factory
 
 
-CONN_STR = "mongodb://localhost:27017/"
-
-@click.command()
-@click.argument("n", type=int)
-@click.option("--conn", "conn_str", default=CONN_STR)
-@click.option("--explore", "explore_param", default=monte_carlo.C)
-def play(n, conn_str, explore_param):
-    with mongo_serialize.MongoTree(conn_str) as tree:
+def play(i, format, explore_param):
+    print("Playing game %d" % i)
+    with serializer_factory.get_serializer(format) as tree:
         x = monte_carlo.MonteCarloPlayer("x", (core.Pawn(), core.Pawn()), tree,
                 c=explore_param)
         o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree,
@@ -24,9 +19,19 @@ def play(n, conn_str, explore_param):
         players = [x, o]
         random.shuffle(players)
         game = core.Game(players)
-        for i, _ in enumerate(serialize.repeat_plays(game, tree, n=n)):
-            print("%d games played" % i)
+        serialize.record_play(game, tree)
+
+
+@click.command()
+@click.argument("n", type=int)
+@click.option("--format", "-f", "format", default=None)
+@click.option("--explore", "-e", "explore_param", default=monte_carlo.C)
+@click.option("--processes", "-p", default=1)
+def main(n, format, explore_param, processes):
+    args = [(i, format, explore_param) for i in range(n)]
+    pool = multiprocessing.Pool(processes)
+    pool.starmap(play, args)
 
 
 if __name__ == '__main__':
-    play()
+    main()

@@ -5,7 +5,7 @@ import serialize
 
 class JsonTree(serialize.Tree):
 
-    def __init__(self, filepath):
+    def __init__(self, filepath="santorini.json"):
         self.filepath = filepath
         self.tree = {}
 
