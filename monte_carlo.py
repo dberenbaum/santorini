@@ -10,6 +10,7 @@ C = math.sqrt(2)  # Exploration parameter.
 def choose_uct(options, tree, c=C):
     tree_nodes = []
     total = 0
+    random.shuffle(options)
     for state in options:
         try:
             n = tree[state]["tries"]
