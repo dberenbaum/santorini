@@ -12,21 +12,24 @@ def choose_uct(options, tree, c=C):
     total = 0
     random.shuffle(options)
     for state in options:
-        try:
-            n = tree[state]["tries"]
-            w = tree[state]["wins"]
-            tree_nodes.append((state, n, w))
-            total += n
-        except KeyError:
-            return state
-    selection = None
+        if state not in tree:
+            tree.insert_state(state)
+        # Add one try to avoid division by zero.
+        n = tree[state]["tries"] + 1
+        w = tree[state]["wins"]
+        tree_nodes.append((state, n, w))
+        total += n
     max_uct = 0
+    selections = []
     for state, n, w in tree_nodes:
         uct = w/n+math.pow(1.0*math.log(total)/n, 1/c)
-        if uct >= max_uct:
-            selection = state
+        if uct > max_uct:
+            selections = [state]
             max_uct = uct
-    return selection
+        elif uct == max_uct:
+            selections.append(state)
+    random.shuffle(selections)
+    return selections[0]
 
 
 class MonteCarloPlayer(Player):
