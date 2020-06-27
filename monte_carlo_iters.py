@@ -4,22 +4,19 @@ import click
 
 import core
 import monte_carlo
-import random
-import serialize
-from serialize_factory import serializer_factory
+from factory import player_factory, serializer_factory
 
 
 def play(i, format, explore_param):
     print("Playing game %d" % i)
     with serializer_factory.get_serializer(format) as tree:
-        x = monte_carlo.MonteCarloPlayer("x", (core.Pawn(), core.Pawn()), tree,
-                c=explore_param)
-        o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree,
-                c=explore_param)
+        x = player_factory.get_player("monte_carlo", "x", tree=tree,
+                                      c=explore_param)
+        o = player_factory.get_player("monte_carlo", "o", tree=tree,
+                                      c=explore_param)
         players = [x, o]
-        random.shuffle(players)
         game = core.Game(players)
-        serialize.record_play(game, tree)
+        monte_carlo.record_play(game, tree)
 
 
 @click.command()
@@ -29,8 +26,12 @@ def play(i, format, explore_param):
 @click.option("--processes", "-p", default=1)
 def main(n, format, explore_param, processes):
     args = [(i, format, explore_param) for i in range(n)]
-    pool = multiprocessing.Pool(processes)
-    pool.starmap(play, args)
+    if processes == 1:
+        for arg in args:
+            play(*arg)
+    else:
+        pool = multiprocessing.Pool(processes)
+        pool.starmap(play, args)
 
 
 if __name__ == '__main__':

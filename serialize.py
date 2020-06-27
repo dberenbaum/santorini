@@ -23,25 +23,3 @@ class Tree(object):
 
     def add_win(self, state):
         self.tree[state]["wins"] += 1
-
-
-def record_play(g, tree, debug=False):
-    moves = {p: [] for p in g.players}
-    for player in g.play():
-        state = g.compact_state()
-        moves[player].append(state)
-        if state not in tree:
-            tree.insert_state(state)
-        tree.add_try(state)
-        if debug:
-            g.print_state()
-    winner = g.winner()
-    for move in moves[winner]:
-        tree.add_win(move)
-
-
-def repeat_plays(g, tree, n=10):
-    for play in range(n):
-        g.reset()
-        record_play(g, tree)
-        yield g

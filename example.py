@@ -5,15 +5,15 @@ import click
 import core
 import human_play
 import monte_carlo
-from serialize_factory import serializer_factory
+from factory import player_factory, serializer_factory
 
 
 @click.command()
 @click.option("-f", "format")
 def play(format):
     with serializer_factory.get_serializer(format) as tree:
-        x = human_play.HumanPlayer("x", (core.Pawn(), core.Pawn()))
-        o = monte_carlo.MonteCarloPlayer("o", (core.Pawn(), core.Pawn()), tree)
+        x = player_factory.get_player("human", "x")
+        o = player_factory.get_player("monte_carlo", "o", tree=tree)
         print("You are player x.")
         players = [x, o]
         random.shuffle(players)

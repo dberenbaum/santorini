@@ -3,6 +3,9 @@ from core import Player
 
 class HumanPlayer(Player):
 
+    def __init__(self, name, pawns):
+        super().__init__(name=name, pawns=pawns, select_func=None)
+
     def setup(self, game):
         for pawn in self.pawns:
             self.active_pawn = pawn
@@ -22,7 +25,6 @@ class HumanPlayer(Player):
                     print(str(e))
 
     def turn(self, game):
-        options = self.turn_options(game)
         pawn_selected = False
         while not pawn_selected:
             try:

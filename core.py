@@ -117,9 +117,10 @@ class Game(object):
 
 class Player(object):
 
-    def __init__(self, name, pawns):
+    def __init__(self, name, pawns, select_func):
         self.name = name
         self.pawns = pawns
+        self.select_func = select_func
         self.reset()
 
     def reset(self):
@@ -133,13 +134,13 @@ class Player(object):
 
     def place(self, space):
         if not self.active_pawn.valid_placement(space):
-            raise InvalidPlayError
+            raise InvalidPlayError("Invalid placement: {:s}".format(str(space)))
         space.player = self
         self.active_pawn.space = space
 
     def move(self, space):
         if not self.active_pawn.valid_move(space):
-            raise InvalidPlayError
+            raise InvalidPlayError("Invalid move: {:s}".format(str(space)))
         if space.level == 3 and self.active_pawn.space.level < 3:
             self.winner = True
         self.active_pawn.space.player = None
@@ -148,16 +149,25 @@ class Player(object):
 
     def build(self, space):
         if not self.active_pawn.valid_build(space):
-            raise InvalidPlayError
+            raise InvalidPlayError("Invalid build: {:s}".format(str(space)))
         space.level += 1
 
     def setup_options(self, game):
         pawn_options = [p.placement_options(game) for p in self.pawns]
         setup_options = []
+        orig_state = game.compact_state()
         for setup_option in itertools.product(*pawn_options):
             if len(setup_option) == len(set(setup_option)):
-                setup_options.append(setup_option)
-        return setup_options
+                self.place_pawns(setup_option)
+                state = game.compact_state()
+                setup_options.append(state)
+                game.set_state(orig_state)
+        return list(set(setup_options))
+
+    def place_pawns(self, spaces):
+        for pawn, space in zip(self.pawns, spaces):
+            self.active_pawn = pawn
+            self.place(space)
 
     def turn_options(self, game):
         options = []
@@ -168,22 +178,33 @@ class Player(object):
             for move_space in pawn.move_options(game):
                 self.move(move_space)
                 if self.winner:
-                    options.append((pawn, move_space, None))
+                    state = game.compact_state()
+                    options.append(state)
                     self.winner = False
                 else:
                     for build_space in pawn.build_options(game):
-                        options.append((pawn, move_space, build_space))
+                        self.build(build_space)
+                        state = game.compact_state()
+                        options.append(state)
+                        build_space.level -= 1
                 move_space.player = None
                 pawn.space = orig_space
                 orig_space.player = self
         self.active_pawn = orig_pawn
-        return options
+        return list(set(options))
 
     def setup(self, game):
-        raise NotImplementedError
+        options = self.setup_options(game)
+        selection = self.select_func(options)
+        game.set_state(selection)
 
     def turn(self, game):
-        raise NotImplementedError
+        options = self.turn_options(game)
+        if options:
+            selection = self.select_func(options)
+            game.set_state(selection)
+        else:
+            game.turns.remove(self)
 
 
 class Pawn(object):
