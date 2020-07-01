@@ -13,7 +13,7 @@ from factory import player_factory, serializer_factory
 def play(format):
     with serializer_factory.get_serializer(format) as tree:
         x = player_factory.get_player("human", "x")
-        o = player_factory.get_player("monte_carlo", "o", tree=tree)
+        o = player_factory.get_player("epsilon_greedy", "o", tree=tree)
         print("You are player x.")
         players = [x, o]
         random.shuffle(players)

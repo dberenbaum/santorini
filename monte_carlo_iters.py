@@ -10,13 +10,14 @@ from factory import player_factory, serializer_factory
 def play(i, format, explore_param):
     print("Playing game %d" % i)
     with serializer_factory.get_serializer(format) as tree:
-        x = player_factory.get_player("monte_carlo", "x", tree=tree,
+        x = player_factory.get_player("mcts", "x", tree=tree,
                                       c=explore_param)
-        o = player_factory.get_player("monte_carlo", "o", tree=tree,
+        o = player_factory.get_player("mcts", "o", tree=tree,
                                       c=explore_param)
         players = [x, o]
         game = core.Game(players)
-        monte_carlo.record_play(game, tree)
+        for turn in game.play():
+            pass
 
 
 @click.command()

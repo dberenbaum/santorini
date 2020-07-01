@@ -31,7 +31,7 @@ class Space(object):
 
 class Game(object):
 
-    def __init__(self, players, size=5):
+    def __init__(self, players, size=3):
         self.size = size
         self.board = [Space(x, y) for y in range(self.size) for x in range(self.size)]
         self.players = list(players)
@@ -47,9 +47,10 @@ class Game(object):
 
     def play(self):
         for player in self.players:
-            player.setup(self)
-            yield self.active_player()
-            self.next_player()
+            if not player.setup_check():
+                player.setup(self)
+                yield self.active_player()
+                self.next_player()
         while not self.winner():
             self.active_player().turn(self)
             yield self.active_player()
@@ -96,6 +97,14 @@ class Game(object):
             board_state.append(rel_num)
         return "".join(str(i) for i in board_state)
 
+        vec_level = np.vectorize(level)
+        level_state = vec_level(self.board)
+        vec_player = np.vectorize(player)
+        player_state = vec_player(self.board)
+        board_state = np.concatenate([level_state, player_state])
+        board_str = np.array2string(board_state, separator="")[1:-1]
+        return board_str
+
     def set_state(self, state):
         active_player = self.active_player()
         self.reset()
@@ -115,12 +124,58 @@ class Game(object):
                 space.player = None
 
 
+class Pawn(object):
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.space = None
+
+    def valid_placement(self, space):
+        if space.player:
+            return False
+        return True
+
+    def valid_move(self, space):
+        if not self.space.is_adjacent(space):
+            return False
+        if space.level > 3:
+            return False
+        if space.level - self.space.level > 1:
+            return False
+        if space.player:
+            return False
+        return True
+
+    def valid_build(self, space, start=None):
+        if not start:
+            start = self.space
+        if not start.is_adjacent(space):
+            return False
+        if space.level > 3:
+            return False
+        if space.player:
+            return False
+        return True
+
+    def placement_options(self, game):
+        return [space for space in game.board if self.valid_placement(space)]
+
+    def move_options(self, game):
+        return [space for space in game.board if self.valid_move(space)]
+
+    def build_options(self, game):
+        return [space for space in game.board if self.valid_build(space)]
+
+
 class Player(object):
 
-    def __init__(self, name, pawns, select_func):
+    def __init__(self, name, pawns=None):
         self.name = name
+        if not pawns:
+            pawns = (Pawn(), Pawn())
         self.pawns = pawns
-        self.select_func = select_func
         self.reset()
 
     def reset(self):
@@ -198,6 +253,12 @@ class Player(object):
         selection = self.select_func(options)
         game.set_state(selection)
 
+    def setup_check(self):
+        for pawn in self.pawns:
+            if not pawn.space:
+                return False
+        return True
+
     def turn(self, game):
         options = self.turn_options(game)
         if options:
@@ -206,50 +267,8 @@ class Player(object):
         else:
             game.turns.remove(self)
 
-
-class Pawn(object):
-
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.space = None
-
-    def valid_placement(self, space):
-        if space.player:
-            return False
-        return True
-
-    def valid_move(self, space):
-        if not self.space.is_adjacent(space):
-            return False
-        if space.level > 3:
-            return False
-        if space.level - self.space.level > 1:
-            return False
-        if space.player:
-            return False
-        return True
-
-    def valid_build(self, space, start=None):
-        if not start:
-            start = self.space
-        if not start.is_adjacent(space):
-            return False
-        if space.level > 3:
-            return False
-        if space.player:
-            return False
-        return True
-
-    def placement_options(self, game):
-        return [space for space in game.board if self.valid_placement(space)]
-
-    def move_options(self, game):
-        return [space for space in game.board if self.valid_move(space)]
-
-    def build_options(self, game):
-        return [space for space in game.board if self.valid_build(space)]
+    def select_func(self, options):
+        raise NotImplementedError
 
 
 class InvalidPlayError(Exception):

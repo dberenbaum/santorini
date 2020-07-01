@@ -3,9 +3,6 @@ from core import Player
 
 class HumanPlayer(Player):
 
-    def __init__(self, name, pawns):
-        super().__init__(name=name, pawns=pawns, select_func=None)
-
     def setup(self, game):
         for pawn in self.pawns:
             self.active_pawn = pawn
