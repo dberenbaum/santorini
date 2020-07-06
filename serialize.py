@@ -19,6 +19,11 @@ class Tree(object):
         self.tree[state] = {"tries": 0, "wins": 0}
 
     def add_try(self, state):
+        if state not in self:
+            self.insert_state(state)
+        self._add_try(state)
+
+    def _add_try(self, state):
         self.tree[state]["tries"] += 1
 
     def add_win(self, state):

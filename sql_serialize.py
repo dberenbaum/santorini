@@ -54,7 +54,7 @@ class SQLTree(serialize.Tree):
         self.session.add(sql_state)
         return sql_state
 
-    def add_try(self, state):
+    def _add_try(self, state):
         sql_state = self.session.query(State).filter_by(state=state).one()
         sql_state.tries += 1
 

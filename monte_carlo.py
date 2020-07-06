@@ -1,5 +1,6 @@
 import math
 import random
+import collections
 
 from core import Game, Player
 from serialize import Tree
@@ -59,34 +60,26 @@ def choose_epsilon_greedy(options, tree, e=E):
     return selection
 
 
-def tree_sim(state, tree, c=C):
-    players = (MonteCarloPlayer("x", tree=tree, c=c),
-               MonteCarloPlayer("o", tree=tree, c=c))
+def tree_sim(state, tree, c=C, player_names=[]):
+    players = []
+    for name in player_names:
+        players.append(MonteCarloPlayer(name, tree=tree, c=c))
     game = Game(players)
     game.set_state(state)
-    game.next_player()
     for player in game.play():
-        state = game.compact_state()
-        yield (player, game.compact_state())
-        if (state not in tree) or (not tree[state]["tries"]):
-            tree.insert_state(state)
-            tree.add_try(state)
-            return
-        else:
-            tree.add_try(state)
+        yield game
 
 
-
-def random_sim(state):
-    players = (RandomPlayer("x"), RandomPlayer("o"))
+def random_sim(state, player_names=[]):
+    players = []
+    for name in player_names:
+        players.append(RandomPlayer(name))
     game = Game(players)
     game.set_state(state)
     game.next_player()
     for player in game.play():
         pass
-    if game.winner().name == "x":
-        return True
-    return False
+    return game.winner().name
 
 
 class EpsilonGreedyPlayer(Player):
@@ -118,44 +111,41 @@ class MCTSPlayer(Player):
         self.playouts = playouts
         super().__init__(name=name, pawns=pawns)
 
-    def select_func(self, options):
+    def search(self, game):
+        orig_state = game.compact_state()
+        orig_player_names = [player.name for player in game.turns]
         # simulate playouts
-        for playout in range(self.playouts):
-            root = choose_uct(options, tree=self.tree, c=self.c)
-            if root not in self.tree:
-                self.tree.insert_state(root)
-                self.tree.add_try(root)
-            our_states = [root]
-            their_states = []
+        for _ in range(self.playouts):
+            states = []
             # choose_uct until reaching untried state or end
-            for player, state in tree_sim(root, self.tree, c=self.c):
-                if player.name == "x":
-                    our_states.append(state)
-                else:
-                    their_states.append(state)
+            for sim in tree_sim(orig_state, self.tree, self.c,
+                    orig_player_names):
+                player = sim.active_player().name
+                sim_state = sim.compact_state()
+                states.append((player, sim_state))
+                self.tree.add_try(sim_state)
+                if self.tree[sim_state]["tries"] == 1:
+                    break
             # if untried state, random playout from leaf
-            win = random_sim(state)
+            winner = sim.winner()
+            if not winner:
+                sim_player_names = [player.name for player in sim.turns]
+                winner = random_sim(states[-1][1], sim_player_names)
             # update tree for all states from root option to leaf
-            if win ^ (player.name == "o"):
-                for state in our_states:
+            for player, state in states:
+                if winner == player:
                     self.tree.add_win(state)
-            else:
-                for state in their_states:
-                    self.tree.add_win(state)
+
+    def setup_options(self, game):
+        self.search(game)
+        return super().setup_options(game)
+
+    def turn_options(self, game):
+        self.search(game)
+        return super().turn_options(game)
+
+    def select_func(self, options):
+        if "write" in dir(self.tree):
+            self.tree.write()
         # act greedily
         return choose_epsilon_greedy(options, self.tree, e=0)
-
-
-def record_play(g, tree, debug=False):
-    moves = {p: [] for p in g.players}
-    for player in g.play():
-        state = g.compact_state()
-        moves[player].append(state)
-        if state not in tree:
-            tree.insert_state(state)
-        tree.add_try(state)
-        if debug:
-            g.print_state()
-    winner = g.winner()
-    for move in moves[winner]:
-        tree.add_win(move)

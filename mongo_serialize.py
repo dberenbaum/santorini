@@ -36,8 +36,59 @@ class MongoTree(serialize.Tree):
         except pymongo.errors.DuplicateKeyError:
             pass
 
-    def add_try(self, state):
+    def _add_try(self, state):
         self.tree.update_one({"_id": state}, {"$inc": {"tries": 1}})
 
     def add_win(self, state):
         self.tree.update_one({"_id": state}, {"$inc": {"wins": 1}})
+
+
+class BulkMongoTree(MongoTree):
+
+    def __init__(self, cnxn_str="mongodb://localhost:27017/", db="santorini",
+                 collection="tree"):
+        self.dict = {}
+        self.ops = {}
+        super().__init__(cnxn_str=cnxn_str, db=db, collection=collection)
+
+    def __contains__(self, state):
+        if state in self.dict:
+            return True
+        elif self.tree.find_one({"_id": state}):
+            self.insert_state(state)
+            return True
+        else:
+            return False
+
+    def __getitem__(self, state):
+        try:
+            return self.dict[state]
+        except KeyError:
+            if state in self:
+                self.dict[state] = self.tree.find_one({"_id": state})
+                self.ops[state] = {"tries": 0, "wins": 0}
+                return self.dict[state]
+            else:
+                raise KeyError
+
+    def insert_state(self, state):
+        self.dict[state] = {"tries": 0, "wins": 0}
+        self.ops[state] = {"tries": 0, "wins": 0}
+
+    def _add_try(self, state):
+        self.dict[state]["tries"] += 1
+        self.ops[state]["tries"] += 1
+
+    def add_win(self, state):
+        self.dict[state]["wins"] += 1
+        self.ops[state]["wins"] += 1
+
+    def write(self):
+        ops = []
+        for state, keys in self.ops.items():
+            op = pymongo.UpdateOne({"_id": state}, {"$inc": keys}, upsert=True)
+            ops.append(op)
+        if ops:
+            self.tree.bulk_write(ops)
+        self.dict = {}
+        self.ops = {}
