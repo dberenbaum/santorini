@@ -16,7 +16,7 @@ class Tree(object):
         return self.tree[key]
 
     def insert_state(self, state):
-        self.tree[state] = {"tries": 0, "wins": 0}
+        self.tree[state] = {"tries": 0, "wins": 0, "options": []}
 
     def add_try(self, state):
         if state not in self:
@@ -28,3 +28,11 @@ class Tree(object):
 
     def add_win(self, state):
         self.tree[state]["wins"] += 1
+
+    def set_options(self, state, options):
+        if state not in self:
+            self.insert_state(state)
+        self._set_options(state, options)
+
+    def _set_options(self, state, options):
+        self.tree[state]["options"] = options

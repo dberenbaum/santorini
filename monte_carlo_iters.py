@@ -3,7 +3,7 @@ import multiprocessing
 import click
 
 import core
-import monte_carlo
+from ai_play import C
 from factory import player_factory, serializer_factory
 
 
@@ -23,7 +23,7 @@ def play(i, format, explore_param):
 @click.command()
 @click.argument("n", type=int)
 @click.option("--format", "-f", "format", default=None)
-@click.option("--explore", "-e", "explore_param", default=monte_carlo.C)
+@click.option("--explore", "-e", "explore_param", default=C)
 @click.option("--processes", "-p", default=1)
 def main(n, format, explore_param, processes):
     args = [(i, format, explore_param) for i in range(n)]

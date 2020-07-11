@@ -8,7 +8,7 @@ from serialize import Tree
 
 C = math.sqrt(2)  # Exploration parameter.
 E = 0.00  # Epsilon greedy exploration parameter.
-PLAYOUTS = 100  # Simulation playouts for Monte Carlo Tree Search.
+PLAYOUTS = 1000  # Simulation playouts for Monte Carlo Tree Search.
 
 
 def choose_uct(options, tree, c=C):
@@ -59,20 +59,20 @@ def choose_epsilon_greedy(options, tree, e=E):
     return selection
 
 
-def tree_sim(state, tree, options={}, c=C, player_names=[]):
+def tree_sim(state, tree=Tree(), c=C, player_names=[]):
     players = []
     for name in player_names:
-        players.append(MonteCarloPlayer(name, tree=tree, options=options, c=c))
+        players.append(MonteCarloPlayer(name, tree=tree, c=c))
     game = Game(players)
     game.set_state(state)
     for player in game.play():
         yield game
 
 
-def random_sim(state, options={}, player_names=[]):
+def random_sim(state, tree=Tree(), player_names=[]):
     players = []
     for name in player_names:
-        players.append(RandomPlayer(name, options=options))
+        players.append(RandomPlayer(name, tree=tree))
     game = Game(players)
     game.set_state(state)
     game.next_player()
@@ -82,18 +82,18 @@ def random_sim(state, options={}, player_names=[]):
 
 
 class LazyPlayer(Player):
-    def __init__(self, name, pawns=None, options={}):
-        print("LazyPlayer __init__")
-        self.options = options
+    def __init__(self, name, pawns=None, tree=Tree()):
+        self.tree = tree
         super().__init__(name, pawns=pawns)
 
     def turn_options(self, game):
         state = game.compact_state()
         try:
-            return self.options[state]
+            return self.tree[state]["options"]
         except KeyError:
-            self.options[state] = super().turn_options(game)
-            return self.options[state]
+            options = super().turn_options(game)
+            self.tree.set_options(state, options)
+            return options
 
 
 class RandomPlayer(LazyPlayer):
@@ -103,10 +103,9 @@ class RandomPlayer(LazyPlayer):
 
 
 class EpsilonGreedyPlayer(LazyPlayer):
-    def __init__(self, name, pawns=None, options={}, tree=Tree(), e=E):
-        self.tree = tree
+    def __init__(self, name, pawns=None, tree=Tree(), e=E):
         self.e = e
-        super().__init__(name, pawns=pawns, options={})
+        super().__init__(name, pawns=pawns, tree=tree)
 
     def select_func(self, options):
         return choose_epsilon_greedy(options, self.tree, self.e)
@@ -114,10 +113,9 @@ class EpsilonGreedyPlayer(LazyPlayer):
 
 class MonteCarloPlayer(LazyPlayer):
 
-    def __init__(self, name, pawns=None, options={}, tree=Tree(), c=C):
-        self.tree = tree
+    def __init__(self, name, pawns=None, tree=Tree(), c=C):
         self.c = c
-        super().__init__(name, pawns=pawns, options=options)
+        super().__init__(name, pawns=pawns, tree=tree)
 
     def select_func(self, options):
         return choose_uct(options, self.tree, self.c)
@@ -125,12 +123,10 @@ class MonteCarloPlayer(LazyPlayer):
 
 class MCTSPlayer(LazyPlayer):
 
-    def __init__(self, name, pawns=None, options={}, tree=Tree(), c=C, playouts=PLAYOUTS):
-        print("MCTSPlayer __init__")
-        self.tree = tree
+    def __init__(self, name, pawns=None, tree=Tree(), c=C, playouts=PLAYOUTS):
         self.c = c
         self.playouts = playouts
-        super().__init__(name, pawns=pawns, options=options)
+        super().__init__(name, pawns=pawns, tree=tree)
 
     def search(self, game):
         orig_state = game.compact_state()
@@ -139,7 +135,7 @@ class MCTSPlayer(LazyPlayer):
         for _ in range(self.playouts):
             states = []
             # choose_uct until reaching untried state or end
-            for sim in tree_sim(orig_state, self.tree, self.options, self.c,
+            for sim in tree_sim(orig_state, self.tree, self.c,
                     orig_player_names):
                 player_name = sim.active_player().name
                 sim_state = sim.compact_state()
@@ -153,7 +149,8 @@ class MCTSPlayer(LazyPlayer):
                 winner_name = winner.name
             else:
                 sim_player_names = [player.name for player in sim.turns]
-                winner_name = random_sim(states[-1][1], sim_player_names)
+                winner_name = random_sim(states[-1][1], self.tree,
+                                         sim_player_names)
             # update tree for all states from root option to leaf
             for player_name, state in states:
                 if winner_name == player_name:

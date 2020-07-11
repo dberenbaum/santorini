@@ -3,8 +3,6 @@ import random
 import click
 
 import core
-import human_play
-import monte_carlo
 from factory import player_factory, serializer_factory
 
 
@@ -13,7 +11,7 @@ from factory import player_factory, serializer_factory
 def play(format):
     with serializer_factory.get_serializer(format) as tree:
         x = player_factory.get_player("human", "x")
-        o = player_factory.get_player("epsilon_greedy", "o", tree=tree)
+        o = player_factory.get_player("mcts", "o", tree=tree, playouts=100)
         print("You are player x.")
         players = [x, o]
         random.shuffle(players)

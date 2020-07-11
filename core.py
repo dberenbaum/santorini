@@ -31,7 +31,7 @@ class Space(object):
 
 class Game(object):
 
-    def __init__(self, players, size=3):
+    def __init__(self, players, size=5):
         self.size = size
         self.board = [Space(x, y) for y in range(self.size) for x in range(self.size)]
         self.players = list(players)
@@ -264,6 +264,9 @@ class Player(object):
         if options:
             selection = self.select_func(options)
             game.set_state(selection)
+            for pawn in self.pawns:
+                if pawn.space.level == 3:
+                    self.winner = True
         else:
             game.turns.remove(self)
 

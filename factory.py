@@ -1,7 +1,6 @@
 import core
 import human_play
-import random_play
-import monte_carlo
+import ai_play
 import serialize
 import json_serialize
 import mongo_serialize
@@ -13,13 +12,13 @@ class PlayerFactory:
         if player_type == "human":
             return human_play.HumanPlayer(name, **kwargs)
         if player_type == "random":
-            return random_play.RandomPlayer(name, **kwargs)
+            return ai_play.RandomPlayer(name, **kwargs)
         if player_type == "epsilon_greedy":
-            return monte_carlo.EpsilonGreedyPlayer(name, **kwargs)
+            return ai_play.EpsilonGreedyPlayer(name, **kwargs)
         if player_type == "monte_carlo":
-            return monte_carlo.MonteCarloPlayer(name, **kwargs)
+            return ai_play.MonteCarloPlayer(name, **kwargs)
         if player_type == "mcts":
-            return monte_carlo.MCTSPlayer(name, **kwargs)
+            return ai_play.MCTSPlayer(name, **kwargs)
         else:
             return ValueError(player_type)
 
