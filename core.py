@@ -85,25 +85,19 @@ class Game(object):
         print("\n")
 
     def compact_state(self):
-        board_state = [str(s.level) for s in self.board]
+        board_size = len(self.board)
+        board_state = ["0"]*board_size*2
         active_num = self.players.index(self.active_player())
         num_players = len(self.players)
-        for s in self.board:
+        for i, s in enumerate(self.board):
+            board_state[i] = str(s.level)
+            p_i = board_size + i
             if s.player:
-                rel_num = (self.players.index(s.player) - active_num) \
-                        % num_players + 1
+                board_state[p_i] = str((self.players.index(s.player) - active_num) \
+                        % num_players + 1)
             else:
-                rel_num = 0
-            board_state.append(rel_num)
-        return "".join(str(i) for i in board_state)
-
-        vec_level = np.vectorize(level)
-        level_state = vec_level(self.board)
-        vec_player = np.vectorize(player)
-        player_state = vec_player(self.board)
-        board_state = np.concatenate([level_state, player_state])
-        board_str = np.array2string(board_state, separator="")[1:-1]
-        return board_str
+                board_state[p_i] = "0"
+        return "".join(board_state)
 
     def set_state(self, state):
         active_player = self.active_player()
@@ -215,7 +209,7 @@ class Player(object):
             if len(setup_option) == len(set(setup_option)):
                 self.place_pawns(setup_option)
                 state = game.compact_state()
-                setup_options.append(state)
+                setup_options.append((state, False))
                 game.set_state(orig_state)
         return list(set(setup_options))
 
@@ -234,13 +228,13 @@ class Player(object):
                 self.move(move_space)
                 if self.winner:
                     state = game.compact_state()
-                    options.append(state)
+                    options.append((state, True))
                     self.winner = False
                 else:
                     for build_space in pawn.build_options(game):
                         self.build(build_space)
                         state = game.compact_state()
-                        options.append(state)
+                        options.append((state, False))
                         build_space.level -= 1
                 move_space.player = None
                 pawn.space = orig_space

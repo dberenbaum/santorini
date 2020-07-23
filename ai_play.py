@@ -8,14 +8,16 @@ from serialize import Tree
 
 C = math.sqrt(2)  # Exploration parameter.
 E = 0.00  # Epsilon greedy exploration parameter.
-PLAYOUTS = 1000  # Simulation playouts for Monte Carlo Tree Search.
+PLAYOUTS = 500  # Simulation playouts for Monte Carlo Tree Search.
 
 
 def choose_uct(options, tree, c=C):
     tree_nodes = []
     total = 0
     random.shuffle(options)
-    for state in options:
+    for state, winner in options:
+        if winner:
+            return state
         try:
             n = tree[state]["tries"]
             w = tree[state]["wins"]
@@ -38,11 +40,13 @@ def choose_uct(options, tree, c=C):
 
 def choose_epsilon_greedy(options, tree, e=E):
     random.shuffle(options)
-    selection = options[0]
+    selection = options[0][0]
     if random.random() < e:
         return selection
     tree_nodes = []
-    for state in options:
+    for state, winner in options:
+        if winner:
+            return state
         try:
             n = tree[state]["tries"]
             w = tree[state]["wins"]
@@ -82,24 +86,28 @@ def random_sim(state, tree=Tree(), player_names=[]):
 
 
 class LazyPlayer(Player):
-    def __init__(self, name, pawns=None, tree=Tree()):
+    def __init__(self, name, pawns=None, tree=Tree(), lazy=False):
         self.tree = tree
+        self.lazy = lazy
         super().__init__(name, pawns=pawns)
 
     def turn_options(self, game):
         state = game.compact_state()
-        try:
-            return self.tree[state]["options"]
-        except KeyError:
-            options = super().turn_options(game)
-            self.tree.set_options(state, options)
-            return options
+        if self.lazy:
+            try:
+                return self.tree[state]["options"]
+            except KeyError:
+                options = super().turn_options(game)
+                self.tree.set_options(state, options)
+                return options
+        else:
+            return super().turn_options(game)
 
 
 class RandomPlayer(LazyPlayer):
 
     def select_func(self, options):
-        return random.choice(options)
+        return random.choice(options)[0]
 
 
 class EpsilonGreedyPlayer(LazyPlayer):
