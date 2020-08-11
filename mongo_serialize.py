@@ -45,6 +45,10 @@ class MongoTree(serialize.Tree):
     def _set_options(self, state, options):
         self.tree.update_one({"_id": state}, {"$set": {"options": options}})
 
+    def sample(n):
+        for r in self.tree.aggregate([{"$sample": {"size": 3}}]):
+            yield r
+
 
 class BulkMongoTree(MongoTree):
 

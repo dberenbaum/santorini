@@ -2,7 +2,7 @@ import math
 import random
 import collections
 
-from core import Game, Player
+from core import Game, Player, InvalidPlayError
 from serialize import Tree
 
 
@@ -14,7 +14,7 @@ PLAYOUTS = 500  # Simulation playouts for Monte Carlo Tree Search.
 def choose_uct(options, tree, c=C):
     tree_nodes = []
     total = 0
-    random.shuffle(options)
+    untried_state = None
     for state, winner in options:
         if winner:
             return state
@@ -24,7 +24,9 @@ def choose_uct(options, tree, c=C):
             tree_nodes.append((state, n, w))
             total += n
         except KeyError:
-            return state
+            untried_state = state
+    if untried_state:
+        return untried_state
     max_uct = 0
     selection = None
     for state, n, w in tree_nodes:
@@ -39,27 +41,24 @@ def choose_uct(options, tree, c=C):
 
 
 def choose_epsilon_greedy(options, tree, e=E):
-    random.shuffle(options)
-    selection = options[0][0]
     if random.random() < e:
+        random.shuffle(options)
+        selection = options[0][0]
         return selection
-    tree_nodes = []
+    max_val = 0
     for state, winner in options:
         if winner:
             return state
         try:
             n = tree[state]["tries"]
             w = tree[state]["wins"]
-            tree_nodes.append((state, n, w))
+            if n:
+                val = w/n
+                if val >= max_val:
+                    selection = state
+                    max_val = val
         except KeyError:
             pass
-    max_val = 0
-    for state, n, w in tree_nodes:
-        if n:
-            val = w/n
-            if val >= max_val:
-                selection = state
-                max_val = val
     return selection
 
 
@@ -105,9 +104,38 @@ class LazyPlayer(Player):
 
 
 class RandomPlayer(LazyPlayer):
+    def setup(self, game):
+        for pawn in self.pawns:
+            self.active_pawn = pawn
+            choices = pawn.placement_options(game)
+            space = random.choice(choices)
+            self.place(space)
 
-    def select_func(self, options):
-        return random.choice(options)[0]
+    def turn(self, game):
+        pawns = list(self.pawns).copy()
+        random.shuffle(pawns)
+        for pawn in pawns:
+            self.active_pawn = pawn
+            spaces = game.board.copy()
+            random.shuffle(spaces)
+            moved = False
+            for move_space in spaces:
+                try:
+                    self.move(move_space)
+                    if self.winner:
+                        return
+                    moved = True
+                    break
+                except InvalidPlayError:
+                    pass
+            if moved:
+                for build_space in spaces:
+                    try:
+                        self.build(build_space)
+                        return
+                    except InvalidPlayError:
+                        pass
+        game.turns.remove(self)
 
 
 class EpsilonGreedyPlayer(LazyPlayer):
