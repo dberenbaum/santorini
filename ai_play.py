@@ -2,6 +2,7 @@ import math
 import random
 import collections
 
+import cnn
 from core import Game, Player, InvalidPlayError
 from serialize import Tree
 
@@ -11,7 +12,18 @@ E = 0.00  # Epsilon greedy exploration parameter.
 PLAYOUTS = 500  # Simulation playouts for Monte Carlo Tree Search.
 
 
-def choose_uct(options, tree, c=C):
+def choose_uct(tree_nodes, total, c=C):
+    max_uct = 0
+    selection = None
+    for state, n, w in tree_nodes:
+        uct = w/n+math.pow(1.0*math.log(total)/n, 1/c)
+        if uct >= max_uct:
+            selection = state
+            max_uct = uct
+    return selection
+
+
+def choose_uct_random(options, tree, c=C):
     tree_nodes = []
     total = 0
     untried_state = None
@@ -20,24 +32,52 @@ def choose_uct(options, tree, c=C):
             return state
         try:
             n = tree[state]["tries"]
-            w = tree[state]["wins"]
-            tree_nodes.append((state, n, w))
-            total += n
+            if n:
+                w = tree[state]["wins"]
+                tree_nodes.append((state, n, w))
+                total += n
+            else:
+                untried_state = state
         except KeyError:
             untried_state = state
     if untried_state:
         return untried_state
-    max_uct = 0
-    selection = None
-    for state, n, w in tree_nodes:
-        if not n:
+    return choose_uct(tree_nodes, total, c)
+
+
+def choose_cnn(options, model, e=E):
+    if random.random() < e:
+        random.shuffle(options)
+        selection = options[0][0]
+        return selection
+    states = []
+    for state, winner in options:
+        if winner:
             return state
-        else:
-            uct = w/n+math.pow(1.0*math.log(total)/n, 1/c)
-        if uct >= max_uct:
-            selection = state
-            max_uct = uct
-    return selection
+        states.append(state)
+    return cnn.max_state(states, model)
+
+
+def choose_uct_cnn(options, model, tree, c=C):
+    tree_nodes = []
+    total = 0
+    untried_states = []
+    for state, winner in options:
+        if winner:
+            return state
+        try:
+            n = tree[state]["tries"]
+            if n:
+                w = tree[state]["wins"]
+                tree_nodes.append((state, n, w))
+                total += n
+            else:
+                untried_states += state
+        except KeyError:
+            untried_states += state
+    if untried_states:
+        return cnn.max_state(untried_states, model)
+    return choose_uct(tree_nodes, total, c)
 
 
 def choose_epsilon_greedy(options, tree, e=E):
@@ -60,28 +100,6 @@ def choose_epsilon_greedy(options, tree, e=E):
         except KeyError:
             pass
     return selection
-
-
-def tree_sim(state, tree=Tree(), c=C, player_names=[]):
-    players = []
-    for name in player_names:
-        players.append(MonteCarloPlayer(name, tree=tree, c=c))
-    game = Game(players)
-    game.set_state(state)
-    for player in game.play():
-        yield game
-
-
-def random_sim(state, tree=Tree(), player_names=[]):
-    players = []
-    for name in player_names:
-        players.append(RandomPlayer(name, tree=tree))
-    game = Game(players)
-    game.set_state(state)
-    game.next_player()
-    for player in game.play():
-        pass
-    return game.winner().name
 
 
 class LazyPlayer(Player):
@@ -147,14 +165,14 @@ class EpsilonGreedyPlayer(LazyPlayer):
         return choose_epsilon_greedy(options, self.tree, self.e)
 
 
-class MonteCarloPlayer(LazyPlayer):
+class UCTPlayer(LazyPlayer):
 
     def __init__(self, name, pawns=None, tree=Tree(), c=C):
         self.c = c
         super().__init__(name, pawns=pawns, tree=tree)
 
     def select_func(self, options):
-        return choose_uct(options, self.tree, self.c)
+        return choose_uct_random(options, self.tree, self.c)
 
 
 class MCTSPlayer(LazyPlayer):
@@ -164,6 +182,26 @@ class MCTSPlayer(LazyPlayer):
         self.playouts = playouts
         super().__init__(name, pawns=pawns, tree=tree)
 
+    def tree_sim(self, state, player_names):
+        players = []
+        for name in player_names:
+            players.append(UCTPlayer(name, tree=self.tree, c=self.c))
+        game = Game(players)
+        game.set_state(state)
+        for player in game.play():
+            yield game
+
+    def random_sim(self, state, player_names):
+        players = []
+        for name in player_names:
+            players.append(RandomPlayer(name, tree=self.tree))
+        game = Game(players)
+        game.set_state(state)
+        game.next_player()
+        for player in game.play():
+            pass
+        return game.winner().name
+
     def search(self, game):
         orig_state = game.compact_state()
         orig_player_names = [player.name for player in game.turns]
@@ -171,8 +209,7 @@ class MCTSPlayer(LazyPlayer):
         for _ in range(self.playouts):
             states = []
             # choose_uct until reaching untried state or end
-            for sim in tree_sim(orig_state, self.tree, self.c,
-                    orig_player_names):
+            for sim in self.tree_sim(orig_state, orig_player_names):
                 player_name = sim.active_player().name
                 sim_state = sim.compact_state()
                 states.append((player_name, sim_state))
@@ -185,8 +222,7 @@ class MCTSPlayer(LazyPlayer):
                 winner_name = winner.name
             else:
                 sim_player_names = [player.name for player in sim.turns]
-                winner_name = random_sim(states[-1][1], self.tree,
-                                         sim_player_names)
+                winner_name = self.random_sim(states[-1][1], sim_player_names)
             # update tree for all states from root option to leaf
             for player_name, state in states:
                 if winner_name == player_name:
@@ -203,3 +239,44 @@ class MCTSPlayer(LazyPlayer):
     def select_func(self, options):
         # act greedily
         return choose_epsilon_greedy(options, self.tree, e=0)
+
+
+class CNNPlayer(LazyPlayer):
+
+    def __init__(self, name, pawns=None, model=None, **kwargs):
+        self.model = model
+        if not self.model:
+            self.model = cnn.load_model()
+        super().__init__(name, pawns=pawns, **kwargs)
+
+    def select_func(self, options):
+        return choose_cnn(options, self.model)
+
+
+class UctCnnPlayer(LazyPlayer):
+
+    def __init__(self, name, pawns=None, model=None, **kwargs):
+        self.model = model
+        if not self.model:
+            self.model = cnn.load_model()
+        super().__init__(name, pawns=pawns, **kwargs)
+
+    def select_func(self, options):
+        return choose_uct_cnn(options, self.model, self.tree, self.c)
+
+class MctsCnnPlayer(MCTSPlayer):
+
+    def __init__(self, name, model=None, **kwargs):
+        self.model = model
+        if not self.model:
+            self.model = cnn.load_model()
+        super().__init__(name, **kwargs)
+
+    def tree_sim(self, state, player_names):
+        players = []
+        for name in player_names:
+            players.append(CNNPlayer(name, model=self.model))
+        game = Game(players)
+        game.set_state(state)
+        for player in game.play():
+            yield game

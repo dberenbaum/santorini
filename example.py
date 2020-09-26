@@ -8,12 +8,12 @@ from factory import player_factory, serializer_factory
 
 @click.command()
 @click.option("-f", "format", default="mongo_bulk")
-def play(format):
-    with serializer_factory.get_serializer(format, db="mcts") as tree:
-    # with serializer_factory.get_serializer(format, db="monte_carlo") as tree:
+@click.option("--ai", default="mcts")
+@click.option("--db", default="mcts")
+def play(format, ai, db):
+    with serializer_factory.get_serializer(format, db=db) as tree:
         x = player_factory.get_player("human", "x")
-        o = player_factory.get_player("mcts", "o", tree=tree, playouts=500)
-        # o = player_factory.get_player("monte_carlo", "o", tree=tree)
+        o = player_factory.get_player(ai, "o", tree=tree)
         print("You are player x.")
         players = [x, o]
         random.shuffle(players)

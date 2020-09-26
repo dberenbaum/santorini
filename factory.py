@@ -15,10 +15,14 @@ class PlayerFactory:
             return ai_play.RandomPlayer(name, **kwargs)
         if player_type == "epsilon_greedy":
             return ai_play.EpsilonGreedyPlayer(name, **kwargs)
-        if player_type == "monte_carlo":
-            return ai_play.MonteCarloPlayer(name, **kwargs)
+        if player_type == "uct":
+            return ai_play.UCTPlayer(name, **kwargs)
         if player_type == "mcts":
             return ai_play.MCTSPlayer(name, **kwargs)
+        if player_type == "cnn":
+            return ai_play.CNNPlayer(name, **kwargs)
+        if player_type == "mcts_cnn":
+            return ai_play.MctsCnnPlayer(name, **kwargs)
         else:
             return ValueError(player_type)
 
