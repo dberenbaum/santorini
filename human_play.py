@@ -47,17 +47,18 @@ class HumanPlayer(Player):
                 moved = True
             except Exception as e:
                 print(str(e))
-        built = False
-        while not built:
-            try:
-                print("Enter grid space to build:")
-                gridspace = input()
-                space = None
-                for sp in game.board:
-                    if str(sp) == gridspace:
-                        space = sp
-                        break
-                self.build(space)
-                built = True
-            except Exception as e:
-                print(str(e))
+        if not game.winner():
+            built = False
+            while not built:
+                try:
+                    print("Enter grid space to build:")
+                    gridspace = input()
+                    space = None
+                    for sp in game.board:
+                        if str(sp) == gridspace:
+                            space = sp
+                            break
+                    self.build(space)
+                    built = True
+                except Exception as e:
+                    print(str(e))

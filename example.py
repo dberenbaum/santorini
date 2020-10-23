@@ -10,10 +10,11 @@ from factory import player_factory, serializer_factory
 @click.option("-f", "format", default="mongo_bulk")
 @click.option("--ai", default="mcts")
 @click.option("--db", default="mcts")
-def play(format, ai, db):
+@click.option("--debug", is_flag=True)
+def play(format, ai, db, debug):
     with serializer_factory.get_serializer(format, db=db) as tree:
         x = player_factory.get_player("human", "x")
-        o = player_factory.get_player(ai, "o", tree=tree)
+        o = player_factory.get_player(ai, "o", tree=tree, debug=debug)
         print("You are player x.")
         players = [x, o]
         random.shuffle(players)

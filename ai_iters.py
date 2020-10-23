@@ -1,3 +1,4 @@
+import datetime
 import multiprocessing
 
 import click
@@ -8,6 +9,7 @@ from factory import player_factory, serializer_factory
 
 def play(i, format, ai, db):
     print("Playing game %d" % i)
+    print(datetime.datetime.now())
     with serializer_factory.get_serializer(format, db=db) as tree:
         x = player_factory.get_player(ai, "x", tree=tree)
         o = player_factory.get_player(ai, "o", tree=tree)
